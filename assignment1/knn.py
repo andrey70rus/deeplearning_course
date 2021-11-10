@@ -83,7 +83,6 @@ class KNN:
 
         return dists
 
-
     def compute_distances_no_loops(self, X):
         '''
         Computes L1 distance from every sample of X to every training sample
@@ -102,10 +101,11 @@ class KNN:
         dists = np.zeros((num_test, num_train), np.float32)
         # TODO: Implement computing all distances with no loops!
         train_X = self.train_X.copy()
+
         dists = np.sum(
-            np.abs(np.dstack([X] * num_train) - np.dstack([train_X] * num_test).T),
-            axis=1
-        )
+            np.abs(X.reshape(1, num_test, -1) - train_X.reshape(num_train, 1, -1)),
+            axis=2
+        ).T
 
         return dists
 
@@ -158,7 +158,6 @@ class KNN:
         pred, np array of int (num_test_samples) - predicted class index 
            for every test sample
         '''
-        num_test = dists.shape[0]
         num_test = dists.shape[0]
         pred = np.zeros(num_test, np.int)
         print(self.k)
