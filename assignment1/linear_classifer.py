@@ -17,6 +17,9 @@ def softmax(predictions):
     # TODO implement softmax
     # Your final implementation shouldn't have any loops
     predictions = predictions.copy()
+    # if len(predictions.shape) == 1:
+    #     predictions = predictions[None, :]
+    predictions = predictions.astype(float)
 
     max_vals = np.max(predictions, axis=-1)
     predictions -= np.full_like(predictions.T, max_vals).T
@@ -65,13 +68,19 @@ def softmax_with_cross_entropy(predictions, target_index):
     '''
     # TODO implement softmax with cross-entropy
     # Your final implementation shouldn't have any loops
+
+    if not isinstance(target_index, np.ndarray):
+        target_index = np.array([target_index])
+
+    if len(predictions.shape) == 1:
+        predictions = predictions.copy()[None, :]
+
     num_batches = len(predictions)
     probs = np.zeros_like(predictions)
     loss = np.zeros(num_batches)
     dprediction = np.zeros_like(predictions)
 
     for idx in range(num_batches):
-
         probs[idx] = softmax(predictions[idx])  # softmax
 
         loss[idx] = - np.sum(1 * np.log(probs[idx][target_index[idx]]))  # cross-entropy
@@ -97,7 +106,11 @@ def l2_regularization(W, reg_strength):
 
     # TODO: implement l2 regularization and gradient
     # Your final implementation shouldn't have any loops
-    raise Exception("Not implemented!")
+    # l2_reg_loss = regularization_strength * sumij W[i, j]2
+
+    loss = reg_strength * np.sum(W ** 2)
+
+    grad = 2 * reg_strength * W
 
     return loss, grad
     
@@ -124,7 +137,7 @@ def linear_softmax(X, W, target_index):
     loss, dpred = softmax_with_cross_entropy(predictions, target_index)
 
     y_true = np.zeros_like(predictions)
-    y_true[target_index] += 1
+    y_true[:, target_index] += 1
 
     prob = softmax(predictions)
     gradient = np.dot(X.T, prob - y_true)
@@ -132,7 +145,7 @@ def linear_softmax(X, W, target_index):
     return loss, gradient
 
 
-class LinearSoftmaxClassifier():
+class LinearSoftmaxClassifier:
     def __init__(self):
         self.W = None
 
@@ -168,9 +181,27 @@ class LinearSoftmaxClassifier():
             # Apply gradient to weights using learning rate
             # Don't forget to add both cross-entropy loss
             # and regularization!
-            raise Exception("Not implemented!")
 
-            # end
+            loss = 0
+
+            for batch_idxs in batches_indices:
+                loss_batches, gradient = linear_softmax(
+                    X[batch_idxs], self.W, y[batch_idxs]
+                )
+
+                # for sample_idx in range(len(batch_idxs)):
+                loss_l2, gradient_l2 = l2_regularization(self.W, reg)
+
+                loss_batches += loss_l2
+                gradient += gradient_l2
+
+                loss += loss_batches.sum()
+                self.W -= learning_rate * gradient
+                print(loss_batches.sum())
+
+            loss_history.append(loss)
+
+            #end
             print("Epoch %i, loss: %f" % (epoch, loss))
 
         return loss_history
@@ -189,19 +220,32 @@ class LinearSoftmaxClassifier():
 
         # TODO Implement class prediction
         # Your final implementation shouldn't have any loops
-        raise Exception("Not implemented!")
+        y_pred = None
 
         return y_pred
 
 
 if __name__ == '__main__':
-    batch_size = 2
-    num_classes = 2
-    num_features = 3
-    np.random.seed(42)
-    W = np.random.randint(-1, 3, size=(num_features, num_classes)).astype(np.float)
-    X = np.random.randint(-1, 3, size=(batch_size, num_features)).astype(np.float)
-    target_index = np.ones(batch_size, dtype=np.int)
+    def prepare_for_linear_classifier(train_X, test_X):
+        train_flat = train_X.reshape(train_X.shape[0], -1).astype(np.float) / 255.0
+        test_flat = test_X.reshape(test_X.shape[0], -1).astype(np.float) / 255.0
 
-    loss, dW = linear_softmax(X, W, target_index)
-    check_gradient(lambda w: linear_softmax(X, w, target_index), W)
+        # Subtract mean
+        mean_image = np.mean(train_flat, axis=0)
+        train_flat -= mean_image
+        test_flat -= mean_image
+
+        # Add another channel with ones as a bias term
+        train_flat_with_ones = np.hstack([train_flat, np.ones((train_X.shape[0], 1))])
+        test_flat_with_ones = np.hstack([test_flat, np.ones((test_X.shape[0], 1))])
+        return train_flat_with_ones, test_flat_with_ones
+
+    from dataset import load_svhn, random_split_train_val
+
+    train_X, train_y, test_X, test_y = load_svhn("data", max_train=10000, max_test=1000)
+    train_X, test_X = prepare_for_linear_classifier(train_X, test_X)
+    # Split train into train and val
+    train_X, train_y, val_X, val_y = random_split_train_val(train_X, train_y, num_val=1000)
+    classifier = LinearSoftmaxClassifier()
+    loss_history = classifier.fit(train_X, train_y, epochs=10, learning_rate=1e-3, batch_size=300, reg=1e1)
+
