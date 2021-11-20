@@ -68,6 +68,7 @@ def softmax_with_cross_entropy(predictions, target_index):
     '''
     # TODO implement softmax with cross-entropy
     # Your final implementation shouldn't have any loops
+    Eps = 1e-13
 
     if not isinstance(target_index, np.ndarray):
         target_index = np.array([target_index])
@@ -82,13 +83,16 @@ def softmax_with_cross_entropy(predictions, target_index):
 
     for idx in range(num_batches):
         probs[idx] = softmax(predictions[idx])  # softmax
+        probs[idx] = np.clip(probs[idx], 0+Eps, 1-Eps)
 
         loss[idx] = - np.sum(1 * np.log(probs[idx][target_index[idx]]))  # cross-entropy
 
         dprediction[idx] = probs[idx].copy()
         dprediction[idx][target_index[idx]] -= 1
 
-    return loss, dprediction
+    loss /= num_batches
+
+    return np.sum(loss), dprediction
 
 
 def l2_regularization(W, reg_strength):
@@ -195,7 +199,7 @@ class LinearSoftmaxClassifier:
                 loss_batches += loss_l2
                 gradient += gradient_l2
 
-                loss += loss_batches.sum()
+                loss += loss_batches
                 self.W -= learning_rate * gradient
                 print(loss_batches.sum())
 
@@ -246,6 +250,28 @@ if __name__ == '__main__':
     train_X, test_X = prepare_for_linear_classifier(train_X, test_X)
     # Split train into train and val
     train_X, train_y, val_X, val_y = random_split_train_val(train_X, train_y, num_val=1000)
+
+    train_X = np.array(
+        [
+            [244, 250, 255, 250], [0, 0, 0, 10], [0, 10, 20, 0], [0, 0, 0, 0],
+            [20, 0, 10, 10], [10, 0, 0, 0], [244, 250, 255, 250], [0, 0, 0, 0],
+            [0, 0, 0, 0], [244, 250, 255, 250], [244, 250, 255, 250], [244, 250, 255, 250],
+            [244, 250, 255, 250], [0, 0, 0, 10], [0, 10, 20, 0], [0, 0, 0, 0],
+            [20, 0, 10, 10], [10, 0, 0, 0], [244, 250, 255, 250], [0, 0, 0, 0],
+            [0, 0, 0, 0], [244, 250, 255, 250], [244, 250, 255, 250], [244, 250, 255, 250],
+            [244, 250, 255, 250], [0, 0, 0, 10], [0, 10, 20, 0], [0, 0, 0, 0],
+            [20, 0, 10, 10], [10, 0, 0, 0], [244, 250, 255, 250], [0, 0, 0, 0],
+            [0, 0, 0, 0], [244, 250, 255, 250], [244, 250, 255, 250], [244, 250, 255, 250],
+        ]
+    )
+    train_y = np.array(
+        [
+            1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 1, 1,
+            1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 1, 1,
+            1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 1, 1,
+        ]
+    )
+
     classifier = LinearSoftmaxClassifier()
-    loss_history = classifier.fit(train_X, train_y, epochs=10, learning_rate=1e-3, batch_size=300, reg=1e1)
+    loss_history = classifier.fit(train_X, train_y, epochs=10, learning_rate=1e-3, batch_size=4, reg=1e1)
 
