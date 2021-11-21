@@ -24,8 +24,11 @@ def check_gradient(f, x, delta=1e-5, tol=1e-4):
 
     assert np.all(np.isclose(orig_x, x, tol)), "Functions shouldn't modify input variables"
 
-    if x.shape != analytic_grad.shape:
-        analytic_grad = analytic_grad[0, :]
+    # Одномерный случай приводим к многомерному
+    if len(analytic_grad.shape) == 1:
+        analytic_grad = analytic_grad[None, :]
+    if len(x.shape) == 1:
+        x = x[None, :]
 
     assert analytic_grad.shape == x.shape
     analytic_grad = analytic_grad.copy()
@@ -43,11 +46,9 @@ def check_gradient(f, x, delta=1e-5, tol=1e-4):
         x_plus_delta = it.operands[0].copy()
         x_plus_delta[ix] += delta
 
-        left_point_val, _ = f(x_plus_delta)
-        right_point_val, _ = f(x_minus_delta)
+        left_point_val, _ = f(x_plus_delta.squeeze())
+        right_point_val, _ = f(x_minus_delta.squeeze())
         numeric_grad_at_ix = np.sum(left_point_val - right_point_val) / (2 * delta)
-
-        # print(x_minus_delta, x_plus_delta)
 
         if not np.isclose(numeric_grad_at_ix, analytic_grad_at_ix, tol):
             print("Gradients are different at %s. Analytic: %2.5f, Numeric: %2.5f" % (ix, analytic_grad_at_ix, numeric_grad_at_ix))
